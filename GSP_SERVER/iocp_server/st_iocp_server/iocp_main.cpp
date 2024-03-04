@@ -332,12 +332,47 @@ void do_move(int playerId, char dir)
 	const int old_s_x = objects[playerId].sectorX;
 	const int old_s_y = objects[playerId].sectorY;
 
+    int new_x, new_y;
+    
 	switch (dir) {
-	case 0: if (y > 0) y--; break;
-	case 1: if (y < (WORLD_HEIGHT - 1)) y++; break;
-	case 2: if (x > 0) x--; break;
-	case 3: if (x < (WORLD_WIDTH - 1)) x++; break;
+	case 0: 
+	{
+	    if (!WORLD_MAP.is_valid(x, y-1))
+	    {
+	        return;
+	    }
+
+	    y--;
+	    break;
 	}
+	case 1:
+	    if (!WORLD_MAP.is_valid(x, y+1))
+	    {
+	        return;
+	    }
+	    
+	    y++;
+        break;
+	case 2:
+        if (!WORLD_MAP.is_valid(x-1, y))
+        {
+            return;
+        }
+    
+        x--;
+	    break;
+	case 3:
+        if(!WORLD_MAP.is_valid(x+1, y))
+        {
+            return;
+        }
+	    
+	    x++;
+	    break;
+    default:
+        //
+        return;
+    }
 
 	const int newSectorX = x / SECTOR_X_SIZE;
 	const int newSectorY = y / SECTOR_Y_SIZE;
@@ -663,6 +698,11 @@ void do_npc_random_move(S_OBJECT& npc)
 
 	int new_s_x = x / SECTOR_X_SIZE;
 	int new_s_y = y / SECTOR_Y_SIZE;
+
+    if (!WORLD_MAP.is_valid(new_s_x, new_s_y))
+    {
+        return;
+    }
 	
 	if (new_s_x == npc.sectorX && new_s_y == npc.sectorY) {
 	}

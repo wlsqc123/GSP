@@ -62,6 +62,11 @@ public:
     // A* 알고리즘
     vector<Node*> find_path(int start_x, int start_y, int goal_x, int goal_y);
 
+    // 해당 위치가 유효한지
+    bool is_valid(int x, int y) const {
+        return x >= 0 && x < width_ && y >= 0 && y < height_ && map_[y][x] == 0;
+    }
+
 private:
     int width_, height_;
     float obstacle_ratio_;
@@ -70,11 +75,6 @@ private:
     // 맨해튼 거리
     int heuristic(int x, int y, int goalX, int goalY) const {
         return abs(x - goalX) + abs(y - goalY);
-    }
-
-    // 해당 위치가 유효한지
-    bool is_valid(int x, int y) const {
-        return x >= 0 && x < width_ && y >= 0 && y < height_ && map_[y][x] == 0;
     }
 
     // 경로 재구성 함수
