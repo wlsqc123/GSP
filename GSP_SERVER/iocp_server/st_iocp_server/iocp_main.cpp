@@ -4,15 +4,19 @@
 #include <vector>
 #include <mutex>
 #include <array>
-#include <queue>z	
+#include <queue>
 using namespace std;
 #include <WS2tcpip.h>
 #include <MSWSock.h>
+#include <chrono>
+#include <atomic>
+
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "MSWSock.lib")
 #pragma comment(lib, "lua53.lib")
 
-#include "..\..\2021_텀프_protocol.h"
+#include "..\..\protocol.h"
+#include "./Map/MapGenerator.h"
 
 ;
 extern "C" {
@@ -27,6 +31,8 @@ constexpr int MAX_BUFFER = 1024;
 
 constexpr int SECTOR_X_SIZE = WORLD_WIDTH / 20;
 constexpr int SECTOR_Y_SIZE = WORLD_HEIGHT / 20;
+
+MapGenerator WORLD_MAP(WORLD_WIDTH, WORLD_HEIGHT, 0.3f);
 
 enum Input { Up, Down, Left, Right, Attack, None };
 enum STAT { HP, LEVEL, EXP };
@@ -80,7 +86,12 @@ struct S_OBJECT
 
 	char				m_name[MAX_ID_LEN];
 	int					cl, currentHp_, max_hp, level_, currentExp_, maxExp_, power_;
-	short				x, y;
+
+    short				x, y;
+    short               prevX, prevY;
+
+    short               target_x, target_y;
+    
 	int					sectorX, sectorY;
 	int					move_time;
 	
@@ -258,9 +269,9 @@ void sendSpawnObject(int c_id, int p_id)
 	p.y = objects[p_id].y;
 	p.obj_class = 0; // 추후 변경 필요
 	p.obj_class = objects[p_id].cl;
-	p.HP = objects[p_id].currentHp_;
-	p.LEVEL = objects[p_id].level_;
-	p.EXP = objects[p_id].currentHp_;
+	p.hp = objects[p_id].currentHp_;
+	p.level = objects[p_id].level_;
+	p.exp = objects[p_id].currentHp_;
 
 	strcpy_s(p.name, objects[p_id].m_name);
 	doSend(c_id, &p);
@@ -445,6 +456,49 @@ void do_move(int playerId, char dir)
 
 }
 
+void calculated_damage(int attacker, int target)
+{
+    objects[target].currentHp_ -= objects[attacker].power_;
+
+    // 입은 데미지 전송
+    sendStatChange(attacker, STAT::HP, objects[target].power_);
+
+    // 입힌 데미지 전송
+    sendStatChange(attacker, STAT::HP, objects[attacker].power_);
+}
+
+void calculated_exp(int attacker, int target)
+{
+    int exp = 0;
+
+    // 체력이 0 이하로 떨어지면 섹터를 업데이트 하고 리스폰 처리를 함.
+    if (objects[target].currentHp_ <= 0) {
+        exp = objects[attacker].level_ * objects[attacker].level_ * 2;
+        sendStatChange(attacker, STAT::EXP, exp);
+        sendRemoveObject(attacker, target);
+        add_event(target, OP_TYPE::OP_RESPAWN, 30000);
+    }
+
+    objects[target].currentExp_ += exp;
+
+    while (objects[target].currentExp_ > objects[target].maxExp_) {
+        objects[target].currentExp_ -= objects[target].maxExp_;
+        objects[target].level_++;
+        objects[target].maxExp_ *= ExpMultiplier;
+        objects[target].power_ += PowerIncrease;
+        sendStatChange(attacker, STAT::LEVEL, objects[target].level_);
+    }
+}
+
+void handleDeath(int target)
+{
+    for (auto& pl : sector[objects[target].sectorX][objects[target].sectorY].objectList_) {
+        if (canSee(pl, target) && false == isNpc(pl)) {
+            sendRemoveObject(pl, target);
+        }
+    }
+}
+
 void process_packet(int currentPlayerId, unsigned char* packetBuffer)
 {
 	switch (packetBuffer[1]) {
@@ -499,39 +553,13 @@ void process_packet(int currentPlayerId, unsigned char* packetBuffer)
 		cs_packet_attack* packet = reinterpret_cast<cs_packet_attack*>(packetBuffer);
 		for (auto& playerId : sector[objects[currentPlayerId].sectorX][objects[currentPlayerId].sectorY].objectList_) {
 			if (currentPlayerId != playerId) {
-				// 플레이어가 공격하면 데미지 입어야함.
-				if (PLST_INGAME == objects[playerId].state_) {
-					if (canAttack(currentPlayerId, playerId) && objects[playerId].currentHp_ > 0) {
-						objects[playerId].currentHp_ -= objects[currentPlayerId].power_;
+			    if (currentPlayerId == playerId) continue;
+			    if (PLST_INGAME != objects[playerId].state_) continue;
+			    if (!canAttack(currentPlayerId, playerId) || objects[playerId].currentHp_ <= 0) continue;
 
-						// 입은 데미지 전송
-						sendStatChange(currentPlayerId, STAT::HP, objects[playerId].power_);
-
-						// 입힌 데미지 전송
-						sendStatChange(currentPlayerId, STAT::HP, objects[currentPlayerId].power_);
-
-						int exp = 0;
-
-						// 체력이 0 이하로 떨어지면 섹터를 업데이트 하고 리스폰 처리를 함.
-						
-						if (objects[playerId].currentHp_ <= 0) {
-							exp = objects[currentPlayerId].level_ * objects[currentPlayerId].level_ * 2;
-							sendStatChange(currentPlayerId, STAT::EXP, exp);
-							sendRemoveObject(currentPlayerId, playerId);
-							add_event(playerId, OP_TYPE::OP_RESPAWN, 30000);
-						}
-
-						objects[playerId].currentExp_ += exp;
-
-						while (objects[playerId].currentExp_ > objects[playerId].maxExp_) {
-							objects[playerId].currentExp_ -= objects[playerId].maxExp_;
-							objects[playerId].level_++;
-							objects[playerId].maxExp_ *= ExpMultiplier;
-							objects[playerId].power_ += PowerIncrease;
-							sendStatChange(currentPlayerId, STAT::LEVEL, objects[playerId].level_);
-						}
-					}
-				}
+			    calculated_damage(currentPlayerId, playerId);
+			    calculated_exp(currentPlayerId, playerId);
+			    handleDeath(packet->target_id);
 			}
 		}
 				  break;
@@ -543,7 +571,6 @@ void process_packet(int currentPlayerId, unsigned char* packetBuffer)
 			if (canSee(pl, currentPlayerId) && false == isNpc(pl)) {
 				sendRemoveObject(pl, currentPlayerId);
 			}
-
 		}
 
 		break;
@@ -785,14 +812,26 @@ void worker(HANDLE h_iocp, SOCKET l_socket)
 			break;
 		}
 		case OP_PLAYER_APPROACH: {
-			objects[key].m_sl.lock();
-			int move_player = *reinterpret_cast<int*>(ex_over->packetBuffer_);
-			lua_State* L = objects[key].L;
-			lua_getglobal(L, "player_is_near");
-			lua_pushnumber(L, move_player);
-			lua_pcall(L, 1, 0, 0);
-			objects[key].m_sl.unlock();
-			delete ex_over;
+			// objects[key].m_sl.lock();
+			// lua_State* L = objects[key].L;
+			// lua_getglobal(L, "player_is_near");
+			// lua_pushnumber(L, move_player);
+			// lua_pcall(L, 1, 0, 0);
+			// objects[key].m_sl.unlock();
+			// delete ex_over;
+
+		    // (API_get_x, API_get_y, objects[key].x, objects[key].y)
+		    
+		    auto path = WORLD_MAP.find_path(objects[key].x, objects[key].y, objects[key].x, objects[key].y);
+		    if (!path.empty()) {
+                objects[key].target_x = path[0]->x;
+                objects[key].target_y = path[0]->y;
+            }
+            else {
+                objects[key].target_x = objects[key].x;
+                objects[key].target_y = objects[key].y;
+            }
+		    
 			break;
 		}
 		case OP_RESPAWN: {
@@ -886,9 +925,31 @@ int API_move_rand(lua_State* L)
 	return 1;
 }
 
+void lua_set_status(lua_State *L, int x, int y, int level, int hp, int exp, int power, int state)
+{
+    lua_getglobal(L, "set_status");
+    lua_pushnumber(L, x);
+    lua_pushnumber(L, y);
+    lua_pushnumber(L, level);
+    lua_pushnumber(L, hp);
+    lua_pushnumber(L, exp);
+    lua_pushnumber(L, power);
+    lua_pushnumber(L, state);
+
+    if(lua_pcall(L, 7, 0, 0) != LUA_OK)
+    {
+        const char* errorMessage = lua_tostring(L, -1);
+        cout << "Error calling function: " << errorMessage << endl;
+        lua_pop(L, 1);  // 에러 메시지를 스택에서 제거
+    }
+}
+
 
 int main()
 {
+    // MapGenerator
+    
+    
 	for (int i = 0; i < MAX_USER + 1; ++i) {
 		auto& pl = objects[i];
 		pl.id = i;
@@ -925,9 +986,12 @@ int main()
 			lua_pushnumber(L, i);
 			lua_pcall(L, 1, 0, 0);
 
+		    lua_set_status(L, pl.x, pl.y, pl.level_, pl.currentHp_, pl.currentExp_, pl.power_, pl.state_);
+
 			lua_register(L, "API_get_x", API_get_x);
 			lua_register(L, "API_get_y", API_get_y);
 			lua_register(L, "API_send_mess", API_send_mess);
+		    // lua_register(L, "API_get")
 		}
 	}
 		cout << "Init done" << endl;
@@ -965,8 +1029,8 @@ int main()
 	for (int i = 0; i < 4; ++i)
 		worker_threads.emplace_back(worker, h_iocp, listenSocket);
 
-	//thread ai_thread{ do_ai };
-	//ai_thread.join();
+	thread ai_thread{ do_ai };
+	ai_thread.join();
 
 	thread timer_thread{ do_timer };
 	timer_thread.join();

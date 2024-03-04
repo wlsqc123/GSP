@@ -141,14 +141,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="iocp_main.cpp" />
+    <ClCompile Include="Map\MapGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\2021_텀프_protocol.h" />
+    <ClInclude Include="..\..\protocol.h" />
     <ClInclude Include="LUA\lauxlib.h" />
     <ClInclude Include="LUA\lua-5.3.5_Win64_vc16_lib\include\lua.hpp" />
     <ClInclude Include="LUA\lua.h" />
     <ClInclude Include="LUA\luaconf.h" />
     <ClInclude Include="LUA\lualib.h" />
+    <ClInclude Include="Map\MapGenerator.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="npc.lua" />
