@@ -337,42 +337,55 @@ void do_move(int playerId, char dir)
 	switch (dir) {
 	case 0: 
 	{
-	    if (!WORLD_MAP.is_valid(x, y-1))
+	    if (WORLD_MAP.is_valid(x, y - 1))
+	    {
+	        y--;
+	    }
+	    else
 	    {
 	        return;
 	    }
-
-	    y--;
+	    
 	    break;
 	}
 	case 1:
-	    if (!WORLD_MAP.is_valid(x, y+1))
+	{
+	    if (WORLD_MAP.is_valid(x, y + 1))
+        {
+            y++;
+        }
+	    else
 	    {
 	        return;
 	    }
 	    
-	    y++;
-        break;
-	case 2:
-        if (!WORLD_MAP.is_valid(x-1, y))
-        {
-            return;
-        }
-    
-        x--;
 	    break;
-	case 3:
-        if(!WORLD_MAP.is_valid(x+1, y))
+	}
+	case 2:
+	{
+	    if (WORLD_MAP.is_valid(x - 1, y))
+	    {
+	        x--;
+	    }
+	    else
         {
             return;
         }
 	    
-	    x++;
 	    break;
-    default:
-        //
-        return;
-    }
+	}
+	case 3:
+	    if (WORLD_MAP.is_valid(x + 1, y))
+	    {
+	        x++;
+	    }
+	    else
+	    {
+	        return;
+	    }
+	    
+        break;
+	}
 
 	const int newSectorX = x / SECTOR_X_SIZE;
 	const int newSectorY = y / SECTOR_Y_SIZE;
