@@ -1,21 +1,21 @@
 h3 code {
-	font-family: inherit ;
-	font-size: inherit ;
+    font-family: inherit;
+    font-size: inherit;
 }
 
 pre, code {
-	font-size: 12pt ;
+    font-size: 12pt;
 }
 
 span.apii {
-	color: gray ;
-	float: right ;
-	font-family: inherit ;
-	font-style: normal ;
-	font-size: small ;
+    color: gray;
+    float: right;
+    font-family: inherit;
+    font-style: normal;
+    font-size: small;
 }
 
 h2:before {
-	content: "" ;
-	padding-right: 0em ;
+    content: "";
+    padding-right: 0em;
 }

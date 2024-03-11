@@ -10,49 +10,71 @@
 
 using namespace std;
 
-struct Node {
+enum Direction
+{
+    UP, RIGHT, DOWN, LEFT
+};
+
+enum Cell
+{
+    EMPTY, OBSTACLE
+};
+
+struct Node
+{
     int x, y;
     int cost, h;
-    Node* parent;
+    Node *parent;
 
-    Node(int x, int y, int cost = 0, int h = 0, Node* parent = nullptr)
-        : x(x), y(y), cost(cost), h(h), parent(parent) {}
+    Node(int x, int y, int cost = 0, int h = 0, Node *parent = nullptr) :
+        x(x), y(y), cost(cost), h(h), parent(parent)
+    {
+    }
 
     int f() const { return cost + h; }
 
-    bool operator>(const Node& other) const {
+    bool operator>(const Node &other) const
+    {
         return f() > other.f();
     }
 };
 
-class MapGenerator {
+class MapGenerator
+{
 public:
-    MapGenerator(const int width, const int height, const float obstacle_ratio)
-        : width_(width), height_(height), obstacle_ratio_(obstacle_ratio) {
+    MapGenerator(const int width, const int height, const float obstacle_ratio) :
+        width_(width), height_(height), obstacle_ratio_(obstacle_ratio)
+    {
         srand(static_cast<unsigned int>(time(nullptr)));
         generate_map();
     }
 
-    void generate_map() {
+    void generate_map()
+    {
         map_.clear();
         map_.resize(height_, vector<int>(width_, 0));
 
         int obstacle_count = static_cast<int>(width_ * height_ * obstacle_ratio_);
 
-        while (obstacle_count > 0) {
+        while (obstacle_count > 0)
+        {
             const int x = rand() % width_;
             const int y = rand() % height_;
 
-            if (map_[y][x] == 0) {
-                map_[y][x] = 1; // 장애물로 설정
+            if (map_[y][x] == Cell::EMPTY)
+            {
+                map_[y][x] = Cell::OBSTACLE; // 장애물로 설정
                 --obstacle_count;
             }
         }
     }
 
-    void print_map() const {
-        for (const auto& row : map_) {
-            for (const int cell : row) {
+    void print_map() const
+    {
+        for (const auto &row : map_)
+        {
+            for (const int cell : row)
+            {
                 cout << (cell == 1 ? "X" : ".") << " ";
             }
             cout << "\n";
@@ -60,10 +82,11 @@ public:
     }
 
     // A* 알고리즘
-    vector<Node*> find_path(int start_x, int start_y, int goal_x, int goal_y);
+    vector<Node *> find_path(int start_x, int start_y, int goal_x, int goal_y);
 
     // 해당 위치가 유효한지
-    bool is_valid(int x, int y) const {
+    bool is_valid(int x, int y) const
+    {
         return x >= 0 && x < width_ && y >= 0 && y < height_ && map_[y][x] == 0;
     }
 
@@ -73,10 +96,11 @@ private:
     vector<vector<int>> map_;
 
     // 맨해튼 거리
-    int heuristic(int x, int y, int goalX, int goalY) const {
+    int heuristic(int x, int y, int goalX, int goalY) const
+    {
         return abs(x - goalX) + abs(y - goalY);
     }
 
     // 경로 재구성 함수
-    static vector<Node*> reconstruct_path(Node* current);
+    static vector<Node *> reconstruct_path(Node *current);
 };

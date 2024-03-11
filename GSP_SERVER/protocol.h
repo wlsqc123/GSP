@@ -1,13 +1,13 @@
 // 서버내의 최대 객체 개수,  객체 ID의 최대 값
 #pragma once
 
-const int MAX_USER = 200000; 
-const int MAX_STR_LEN = 50;
-const int MAX_ID_LEN = 20;
+constexpr int MAX_USER = 200000;
+constexpr int MAX_STR_LEN = 50;
+constexpr int MAX_ID_LEN = 20;
 
 // NPC의 ID가 시작하는 지점, 따라서 플레이어는 0부터 NPC_ID_START까지의 ID를 가짐
 // NPC의 개수는 MAX_USER - NPC_ID_START = 20000,  20만 마리의 NPC가 존재
-const int NPC_ID_START = 10000;
+constexpr int NPC_ID_START = 10000;
 
 #define WORLD_WIDTH			2000
 #define WORLD_HEIGHT		2000
@@ -34,96 +34,109 @@ const int NPC_ID_START = 10000;
 
 #pragma pack(push ,1)
 
-struct sc_packet_login_ok {
-	unsigned char size;
-	char type;
-	int id;
-	short	x, y;
-	int	HP, LEVEL, EXP;
+struct sc_packet_login_ok
+{
+    unsigned char size;
+    char type;
+    int id;
+    short x, y;
+    int HP, LEVEL, EXP;
 };
 
-struct sc_packet_login_fail {
-	unsigned char size;
-	char type;
+struct sc_packet_login_fail
+{
+    unsigned char size;
+    char type;
 };
 
-struct sc_packet_position {
-	unsigned char size;
-	char type;
-	int id;
-	short x, y;
+struct sc_packet_position
+{
+    unsigned char size;
+    char type;
+    int id;
+    short x, y;
     // Stress Test 프로그램에서 delay를 측정할 때 사용, 
-	// 서버는 해당 id가 접속한 클라이언트에서 보내온 최신 값을 return 해야 한다.
-	int move_time;
+    // 서버는 해당 id가 접속한 클라이언트에서 보내온 최신 값을 return 해야 한다.
+    int move_time;
 };
 
-struct sc_packet_chat {
-	unsigned char   size;
-	char	        type;
-	int	            id;
-	char	        message[MAX_STR_LEN];
+struct sc_packet_chat
+{
+    unsigned char size;
+    char type;
+    int id;
+    char message[MAX_STR_LEN];
 };
 
-struct sc_packet_stat_change {
-	unsigned char size;
-	char	type;
-	int	id;
-	int	HP, LEVEL, EXP;
+struct sc_packet_stat_change
+{
+    unsigned char size;
+    char type;
+    int id;
+    int HP, LEVEL, EXP;
 };
 
 
-struct sc_packet_remove_object {
-	unsigned char size;
-	char type;
-	int id;
+struct sc_packet_remove_object
+{
+    unsigned char size;
+    char type;
+    int id;
 };
 
-struct sc_packet_add_object {
-	unsigned char	size;
-	char	type;
-	int	    id;
+struct sc_packet_add_object
+{
+    unsigned char size;
+    char type;
+    int id;
     // 1: PLAYER, 2:ORC,  3:Dragon, …..  비주얼을 결정하는 값, 정의하기 나름
-	int	    obj_class;		
-	short	x, y;
-	int	    hp, level, exp;
-	char	name[MAX_ID_LEN];
+    int obj_class;
+    short x, y;
+    int hp, level, exp;
+    char name[MAX_ID_LEN];
 
 };
 
-struct cs_packet_login {
-	unsigned char	size;
-	char	type;
-	char	player_id[MAX_ID_LEN];
+struct cs_packet_login
+{
+    unsigned char size;
+    char type;
+    char player_id[MAX_ID_LEN];
 };
 
-struct cs_packet_move {
-	unsigned char	size;
-	char	type;
-	char	direction;		// 0:Up, 1:Down, 2:Left, 3:Right
-	int		move_time;			// Stress Test 프로그램에서 delay를 측정할 때 사용, 
-						// 서버는 해당 id가 접속한 클라이언트에서 보내온 최신 값을 return 해야 한다.
+struct cs_packet_move
+{
+    unsigned char size;
+    char type;
+    char direction; // 0:Up, 1:Down, 2:Left, 3:Right
+    int move_time; // Stress Test 프로그램에서 delay를 측정할 때 사용, 
+    // 서버는 해당 id가 접속한 클라이언트에서 보내온 최신 값을 return 해야 한다.
 };
 
-struct cs_packet_attack {
-	unsigned char	size;
-	char	        type;
-    int             target_id;
+struct cs_packet_attack
+{
+    unsigned char size;
+    char type;
+    int target_id;
 };
 
-struct cs_packet_chat {
-	unsigned char	size;
-	char	type;
-	char 	message[MAX_STR_LEN];
+struct cs_packet_chat
+{
+    unsigned char size;
+    char type;
+    char message[MAX_STR_LEN];
 };
 
-struct cs_packet_logout {
-	unsigned char	size;
-	char	type;
+struct cs_packet_logout
+{
+    unsigned char size;
+    char type;
 };
 
-struct cs_packet_teleport {
-	unsigned char	size;
-	char	type;
+struct cs_packet_teleport
+{
+    unsigned char size;
+    char type;
 };
 
 
