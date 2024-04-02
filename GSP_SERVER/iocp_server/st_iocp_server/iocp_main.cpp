@@ -111,10 +111,10 @@ struct S_OBJECT
     int move_time;
 
     unordered_set<int> viewList_;
-    mutex viewListLock_;
+    CRITICAL_SECTION cs_view_list;
 
     lua_State *L;
-    mutex m_sl;
+    mutex mutex_lua;
 
     unsigned char move_stack;
     bool sleep;
@@ -124,6 +124,7 @@ struct SECTOR
 {
     unordered_set<int> objectList_;
     mutex s_mutex;
+    CRITICAL_SECTION cs_object_list;
 };
 
 void disconnect(int p_id);
@@ -430,9 +431,9 @@ void do_move(int playerId, char dir)
     }
 
 
-    objects[playerId].viewListLock_.lock();
+    EnterCriticalSection(&objects[playerId].cs_view_list);
     const unordered_set<int> oldViewList = objects[playerId].viewList_;
-    objects[playerId].viewListLock_.unlock();
+    LeaveCriticalSection(&objects[playerId].cs_view_list);
 
     unordered_set<int> newViewList;
     for (auto &id : sector[newSectorX][newSectorY].objectList_)
@@ -461,24 +462,25 @@ void do_move(int playerId, char dir)
         if (0 == oldViewList.count(pl))
         {
             // 1. 새로 시야에 들어오는 오브젝트
-            objects[playerId].viewListLock_.lock();
+            EnterCriticalSection(&objects[playerId].cs_view_list);
             objects[playerId].viewList_.insert(pl);
-            objects[playerId].viewListLock_.unlock();
+            LeaveCriticalSection(&objects[playerId].cs_view_list);
+            
             sendSpawnObject(playerId, pl);
 
             if (false == isNpc(pl))
             {
                 // 플레이어인 경우
-                objects[pl].viewListLock_.lock();
+                EnterCriticalSection(&objects[pl].cs_view_list);
                 if (0 == objects[pl].viewList_.count(playerId))
                 {
                     objects[pl].viewList_.insert(playerId);
-                    objects[pl].viewListLock_.unlock();
+                    LeaveCriticalSection(&objects[pl].cs_view_list);
                     sendSpawnObject(pl, playerId); // 대상 플레이어한테도 알려줘야 함.
                 }
                 else
                 {
-                    objects[pl].viewListLock_.unlock();
+                    LeaveCriticalSection(&objects[pl].cs_view_list);
                     sendMoveObject(pl, playerId); // 이미 알고있으면 움직였다고만 알려주면 됨.
                 }
             }
@@ -496,16 +498,16 @@ void do_move(int playerId, char dir)
             // 2. 기존 시야에도 있고 새 시야에도 있는 경우
             if (false == isNpc(pl))
             {
-                objects[pl].viewListLock_.lock();
+                EnterCriticalSection(&objects[pl].cs_view_list);
                 if (0 == objects[pl].viewList_.count(playerId))
                 {
                     objects[pl].viewList_.insert(playerId);
-                    objects[pl].viewListLock_.unlock();
+                    LeaveCriticalSection(&objects[pl].cs_view_list);
                     sendSpawnObject(pl, playerId);
                 }
                 else
                 {
-                    objects[pl].viewListLock_.unlock();
+                    LeaveCriticalSection(&objects[pl].cs_view_list);
                     sendMoveObject(pl, playerId);
                 }
             }
@@ -522,23 +524,24 @@ void do_move(int playerId, char dir)
         if (0 == newViewList.count(pl))
         {
             // 3. 시야에서 사라진 경우
-            objects[playerId].viewListLock_.lock();
+            EnterCriticalSection(&objects[playerId].cs_view_list);
             objects[playerId].viewList_.erase(pl);
-            objects[playerId].viewListLock_.unlock();
+            LeaveCriticalSection(&objects[playerId].cs_view_list);
             sendRemoveObject(playerId, pl);
 
             if (false == isNpc(pl))
             {
-                objects[pl].viewListLock_.lock();
+                EnterCriticalSection(&objects[pl].cs_view_list);
+                
                 if (0 != objects[pl].viewList_.count(playerId))
                 {
                     objects[pl].viewList_.erase(playerId);
-                    objects[pl].viewListLock_.unlock();
+                    LeaveCriticalSection(&objects[pl].cs_view_list);
                     sendRemoveObject(pl, playerId);
                 }
                 else
                 {
-                    objects[pl].viewListLock_.unlock();
+                    LeaveCriticalSection(&objects[pl].cs_view_list);
                 }
             }
             else
@@ -628,15 +631,15 @@ void process_packet(int currentPlayerId, unsigned char *packetBuffer)
                 {
                     if (canSee(currentPlayerId, pl))
                     {
-                        objects[currentPlayerId].viewListLock_.lock();
+                        EnterCriticalSection(&objects[currentPlayerId].cs_view_list);
                         objects[currentPlayerId].viewList_.insert(pl);
-                        objects[currentPlayerId].viewListLock_.unlock();
+                        LeaveCriticalSection(&objects[currentPlayerId].cs_view_list);
                         sendSpawnObject(currentPlayerId, pl);
                         if (false == isNpc(pl))
                         {
-                            objects[pl].viewListLock_.lock();
+                            EnterCriticalSection(&objects[pl].cs_view_list);
                             objects[pl].viewList_.insert(currentPlayerId);
-                            objects[pl].viewListLock_.unlock();
+                            LeaveCriticalSection(&objects[pl].cs_view_list);
                             sendSpawnObject(pl, currentPlayerId);
                         }
                         else
@@ -845,9 +848,9 @@ void do_npc_random_move(S_OBJECT &npc)
         if (0 == old_vl.count(pl))
         {
             // 플레이어의 시야에 등장
-            objects[pl].viewListLock_.lock();
+            EnterCriticalSection(&objects[pl].cs_view_list);
             objects[pl].viewList_.insert(npc.id);
-            objects[pl].viewListLock_.unlock();
+            LeaveCriticalSection(&objects[pl].cs_view_list);
             sendSpawnObject(pl, npc.id);
         }
         else
@@ -861,17 +864,17 @@ void do_npc_random_move(S_OBJECT &npc)
     {
         if (0 == new_vl.count(pl))
         {
-            objects[pl].viewListLock_.lock();
+            EnterCriticalSection(&objects[pl].cs_view_list);
             if (0 != objects[pl].viewList_.count(npc.id))
             {
                 objects[pl].viewList_.erase(npc.id);
-                objects[pl].viewListLock_.unlock();
+                LeaveCriticalSection(&objects[pl].cs_view_list);
                 objects[npc.id].sleep = true;
                 sendRemoveObject(pl, npc.id);
             }
             else
             {
-                objects[pl].viewListLock_.unlock();
+                LeaveCriticalSection(&objects[pl].cs_view_list);
             }
         }
     }
@@ -1143,6 +1146,9 @@ int main()
         pl.maxExp_ = 100;
         pl.currentExp_ = 0;
         pl.power_ = 10;
+
+        InitializeCriticalSection(&pl.cs_view_list);
+        SetCriticalSectionSpinCount(&pl.cs_view_list, 4000);
 
         if (true == isNpc(i))
         {

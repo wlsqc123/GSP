@@ -23,22 +23,25 @@ vector<Node *> MapGenerator::find_path(int start_x, int start_y, int goal_x, int
             delete current;
             continue;
         }
+        
         closed_set[current->y][current->x] = true;
 
         vector<pair<int, int>> directions = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
         for (const auto &dir : directions)
         {
-            int next_x = current->x + dir.first, next_y = current->y + dir.second;
+            const int next_x = current->x + dir.first;
+            const int next_y = current->y + dir.second;
 
             if (is_valid(next_x, next_y) && !closed_set[next_y][next_x])
             {
-                auto next_node = new Node(next_x, next_y, current->cost + 1, heuristic(next_x, next_y, goal_x, goal_y),
-                                          current);
+                auto next_node = new Node(next_x, next_y, current->cost + 1,
+                    heuristic(next_x, next_y, goal_x, goal_y), current);
+                
                 open_set.emplace(next_node);
             }
         }
 
-        // Avoid memory leak
+        // 메모리 해제
         while (!open_set.empty())
         {
             delete open_set.top();
